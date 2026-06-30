@@ -1,13 +1,12 @@
 import os
 import fitz
 import chromadb
-import google.genai
 from dotenv import load_dotenv
 from google import genai
-from google.genai import types
+import time
 
 load_dotenv()
-client = google.genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"), http_options={'api_version': 'v1'})
 
 def extract(pdf_path):
     doc = fitz.open(pdf_path)
@@ -25,10 +24,11 @@ def embed(chunks):
     embeddings = []
     for chunk in chunks:
         response = client.models.embed_content(
-            model="text-embedding-004",
+            model="models/gemini-embedding-2",
             contents=chunk
         )
         embeddings.append(response.embeddings[0].values)
+        time.sleep(0.7)
     return embeddings
 
 def store(chunks, embeddings):
@@ -41,7 +41,11 @@ def store(chunks, embeddings):
             ids=[f"doc_{i}"]
         )
 
-def ingest(pdf_path):
-    chunks = extract(pdf_path)
-    embeddings = embed(chunks)
-    store(chunks, embeddings)
+def ingest(folder_path):
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".pdf"):
+            pdf_path = os.path.join(folder_path, filename)
+            print(f"Ingesting {filename}...")
+            chunks = extract(pdf_path)
+            embeddings = embed(chunks)
+            store(chunks, embeddings)
